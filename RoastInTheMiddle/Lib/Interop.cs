@@ -10,11 +10,16 @@ namespace RoastInTheMiddle.Lib
     public class Interop
     {
         public const int KRB_KEY_USAGE_AS_REQ_PA_ENC_TIMESTAMP = 1;
+        public const int KRB_KEY_USAGE_AS_REP_TGS_REP = 2;
+        public const int KRB_KEY_USAGE_TGS_REQ_PA_AUTHENTICATOR = 7;
 
         public enum KERB_MESSAGE_TYPE : long
         {
             AS_REQ = 10,
             AS_REP = 11,
+            TGS_REQ = 12,
+            TGS_REP = 13,
+            AP_REQ = 14,
             CRED = 22,
             ERROR = 30
         }
@@ -40,6 +45,17 @@ namespace RoastInTheMiddle.Lib
             rc4_hmac_exp = 24,
             subkey_keymaterial = 65,
             old_exp = -135
+        }
+
+        public enum KERB_CHECKSUM_ALGORITHM
+        {
+            KERB_CHECKSUM_NONE = 0,
+            KERB_CHECKSUM_RSA_MD4 = 2,
+            KERB_CHECKSUM_RSA_MD5 = 7,
+            KERB_CHECKSUM_HMAC_SHA1_96_AES128 = 15,
+            KERB_CHECKSUM_HMAC_SHA1_96_AES256 = 16,
+            KERB_CHECKSUM_DES_MAC = -133,
+            KERB_CHECKSUM_HMAC_MD5 = -138,
         }
 
         [Flags]
@@ -87,6 +103,7 @@ namespace RoastInTheMiddle.Lib
 
         public enum PADATA_TYPE : UInt32
         {
+            AP_REQ = 1,
             ENC_TIMESTAMP = 2,
             PA_PAC_REQUEST = 128
         }
@@ -195,8 +212,67 @@ namespace RoastInTheMiddle.Lib
             UNKNOWN = 0xFF,
         }
 
+        [Flags]
+        public enum TicketFlags : UInt32
+        {
+            reserved = 2147483648,
+            forwardable = 0x40000000,
+            forwarded = 0x20000000,
+            proxiable = 0x10000000,
+            proxy = 0x08000000,
+            may_postdate = 0x04000000,
+            postdated = 0x02000000,
+            invalid = 0x01000000,
+            renewable = 0x00800000,
+            initial = 0x00400000,
+            pre_authent = 0x00200000,
+            hw_authent = 0x00100000,
+            ok_as_delegate = 0x00040000,
+            anonymous = 0x00020000,
+            name_canonicalize = 0x00010000,
+            //cname_in_pa_data = 0x00040000,
+            enc_pa_rep = 0x00010000,
+            reserved1 = 0x00000001,
+            empty = 0x00000000
+            // TODO: constrained delegation?
+        }
+
+        // From Vincent LE TOUX' "MakeMeEnterpriseAdmin"
+        //  https://github.com/vletoux/MakeMeEnterpriseAdmin/blob/master/MakeMeEnterpriseAdmin.ps1#L1773-L1794
+        [StructLayout(LayoutKind.Sequential)]
+        public struct KERB_ECRYPT
+        {
+            int Type0;
+            public int BlockSize;
+            int Type1;
+            public int KeySize;
+            public int Size;
+            int unk2;
+            int unk3;
+            public IntPtr AlgName;
+            public IntPtr Initialize;
+            public IntPtr Encrypt;
+            public IntPtr Decrypt;
+            public IntPtr Finish;
+            public IntPtr HashPassword;
+            IntPtr RandomKey;
+            IntPtr Control;
+            IntPtr unk0_null;
+            IntPtr unk1_null;
+            IntPtr unk2_null;
+        }
+
+        //  https://github.com/vletoux/MakeMeEnterpriseAdmin/blob/master/MakeMeEnterpriseAdmin.ps1#L1753-L1767
+        public delegate int KERB_ECRYPT_Initialize(byte[] Key, int KeySize, int KeyUsage, out IntPtr pContext);
+        public delegate int KERB_ECRYPT_Encrypt(IntPtr pContext, byte[] data, int dataSize, byte[] output, ref int outputSize);
+        public delegate int KERB_ECRYPT_Decrypt(IntPtr pContext, byte[] data, int dataSize, byte[] output, ref int outputSize);
+        public delegate int KERB_ECRYPT_Finish(ref IntPtr pContext);
 
         [DllImport("iphlpapi.dll", ExactSpelling = true)]
         public static extern int SendARP(int DestIP, int SrcIP, [Out] byte[] pMacAddr, ref int PhyAddrLen);
+
+        // Adapted from Vincent LE TOUX' "MakeMeEnterpriseAdmin"
+        [DllImport("cryptdll.Dll", CharSet = CharSet.Auto, SetLastError = false)]
+        public static extern int CDLocateCSystem(KERB_ETYPE type, out IntPtr pCheckSum);
     }
 }

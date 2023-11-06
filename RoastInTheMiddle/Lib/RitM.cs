@@ -31,7 +31,10 @@ namespace RoastInTheMiddle.Lib
                 return;
             }
 
-            Console.WriteLine($"[*] Loaded {spns.Count} SPNs to try");
+            if (Program.command.Equals("kerberoast"))
+            {
+                Console.WriteLine($"[*] Loaded {spns.Count} SPNs to try");
+            }
 
             Console.WriteLine("[*] Starting sniffer");
             var sniffer = Task.Run(() => Sniffer.Start(listenIP));
