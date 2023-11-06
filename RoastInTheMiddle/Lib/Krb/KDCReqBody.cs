@@ -7,11 +7,14 @@ namespace RoastInTheMiddle.Lib.Krb
 {
     public class KDCReqBody
     {
-        public KDCReqBody()
+        public KDCReqBody(bool c = true)
         {
             kdcOptions = Interop.KdcOptions.FORWARDABLE | Interop.KdcOptions.RENEWABLE | Interop.KdcOptions.RENEWABLEOK;
 
-            cname = new PrincipalName();
+            if (c)
+            {
+                cname = new PrincipalName();
+            }
 
             sname = new PrincipalName();
 
@@ -189,6 +192,16 @@ namespace RoastInTheMiddle.Lib.Krb
                 allNodes.Add(addrSeqTotal2);
             }
 
+            // additional-tickets      [11] SEQUENCE OF Ticket OPTIONAL
+            if (additional_tickets != null && additional_tickets.Count > 0)
+            {
+                AsnElt ticketAsn = additional_tickets[0].Encode();
+                AsnElt ticketSeq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { ticketAsn });
+                AsnElt ticketSeq2 = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { ticketSeq });
+                ticketSeq2 = AsnElt.MakeImplicit(AsnElt.CONTEXT, 11, ticketSeq2);
+                allNodes.Add(ticketSeq2);
+            }
+
             AsnElt seq = AsnElt.Make(AsnElt.SEQUENCE, allNodes.ToArray());
 
             return seq;
@@ -214,5 +227,7 @@ namespace RoastInTheMiddle.Lib.Krb
         public List<Interop.KERB_ETYPE> etypes { get; set; }
 
         public List<HostAddress> addresses { get; set; }
+
+        public List<Ticket> additional_tickets { get; set; }
     }
 }

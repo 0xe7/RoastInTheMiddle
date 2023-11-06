@@ -149,14 +149,14 @@ namespace RoastInTheMiddle.Lib
                     {
                         AS_REQ asReq = new AS_REQ(recordData);
 
-                        Console.WriteLine($"[*]   SNIFFER: Got AS-REQ for user {string.Join("@", asReq.req_body.cname.name_string)}@{asReq.req_body.realm} to service {string.Join("/", asReq.req_body.sname.name_string)}");
-
                         // only use AS-REQ's with preauth, accounts without preauth don't require MitM
                         foreach (var padata in asReq.padata)
                         {
                             if (padata.type is Interop.PADATA_TYPE.ENC_TIMESTAMP)
                             {
                                 Program.shared["captured"] = asReq;
+
+                                Console.WriteLine($"[*]   SNIFFER: Got AS-REQ for user {string.Join("@", asReq.req_body.cname.name_string)}@{asReq.req_body.realm} to service {string.Join("/", asReq.req_body.sname.name_string)}");
                             }
                         }
                     }

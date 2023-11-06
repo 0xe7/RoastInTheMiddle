@@ -56,6 +56,30 @@ namespace RoastInTheMiddle.Lib.Krb
             }
         }
 
+        public PA_DATA(string crealm, string cname, Ticket providedTicket, byte[] clientKey, Interop.KERB_ETYPE etype, bool opsec = false)
+        {
+            // include an AP-REQ, so PA-DATA for a TGS-REQ
+
+            type = Interop.PADATA_TYPE.AP_REQ;
+
+            // build the AP-REQ
+            AP_REQ ap_req = new AP_REQ(crealm, cname, providedTicket, clientKey, etype);
+
+            // make authenticator look more realistic
+            if (opsec)
+            {
+                var rand = new Random();
+                ap_req.authenticator.seq_number = (UInt32)rand.Next(1, Int32.MaxValue);
+                // Could be useful to output the sequence number in case we implement KRB_PRIV or KRB_SAFE messages
+                Console.WriteLine("[+] Sequence number is: {0}", ap_req.authenticator.seq_number);
+
+                // randomize cusec to avoid fingerprinting
+                ap_req.authenticator.cusec = rand.Next(0, 999999);
+            }
+
+            value = ap_req;
+        }
+
         public AsnElt Encode()
         {
             // padata-type     [1] Int32
@@ -83,6 +107,17 @@ namespace RoastInTheMiddle.Lib.Krb
                 blobSeq = AsnElt.MakeImplicit(AsnElt.CONTEXT, 2, blobSeq);
 
                 AsnElt seq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { nameTypeSeq, blobSeq });
+                return seq;
+            }
+            else if (type == Interop.PADATA_TYPE.AP_REQ)
+            {
+                // used for TGS-REQs
+                AsnElt blob = AsnElt.MakeBlob(((AP_REQ)value).Encode().Encode());
+                AsnElt blobSeq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { blob });
+
+                paDataElt = AsnElt.MakeImplicit(AsnElt.CONTEXT, 2, blobSeq);
+
+                AsnElt seq = AsnElt.Make(AsnElt.SEQUENCE, new AsnElt[] { nameTypeSeq, paDataElt });
                 return seq;
             }
             else
